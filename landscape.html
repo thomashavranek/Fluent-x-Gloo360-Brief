@@ -281,7 +281,7 @@ const HEADER_H = 66;
 
 // ---------- Components ----------
 
-function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW }) {
+function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW, colW }) {
   return (
     <div
       style={{
@@ -304,7 +304,7 @@ function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW }) {
             aria-pressed={active}
             title={`${s.name} — click to ${active ? "remove" : "add"} filter`}
             style={{
-              width: COL_STAGE_W,
+              width: colW,
               flexShrink: 0,
               textAlign: "center",
               padding: "6px 2px 0",
@@ -362,7 +362,7 @@ function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW }) {
   );
 }
 
-function ColumnHighlights({ stageFilter, colLabelW }) {
+function ColumnHighlights({ stageFilter, colLabelW, colW }) {
   if (stageFilter.size === 0) return null;
   return (
     <div
@@ -387,8 +387,8 @@ function ColumnHighlights({ stageFilter, colLabelW }) {
               position: "absolute",
               top: 0,
               bottom: 0,
-              left: (s.id - 1) * COL_STAGE_W,
-              width: COL_STAGE_W,
+              left: (s.id - 1) * colW,
+              width: colW,
               background: "var(--col-highlight)",
             }}
           />
@@ -398,7 +398,7 @@ function ColumnHighlights({ stageFilter, colLabelW }) {
   );
 }
 
-function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }) {
+function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, compact }) {
   const dotR = compact ? 3 : 4;
   const strokeW = compact ? (highlight ? 1.75 : 1.25) : (highlight ? 2 : 1.5);
 
@@ -463,13 +463,13 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }
 
         <div style={{ position: "relative", height: rowH, flex: 1 }}>
           <svg
-            width={STAGES.length * COL_STAGE_W}
+            width={STAGES.length * colW}
             height={rowH}
             style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}
           >
             {tool.segments.map((seg, i) => {
               if (seg.length === 1) {
-                const cx = (seg[0] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
+                const cx = (seg[0] - 1) * colW + colW / 2;
                 return (
                   <circle
                     key={i}
@@ -480,8 +480,8 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }
                   />
                 );
               }
-              const x1 = (seg[0] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
-              const x2 = (seg[seg.length - 1] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
+              const x1 = (seg[0] - 1) * colW + colW / 2;
+              const x2 = (seg[seg.length - 1] - 1) * colW + colW / 2;
               return (
                 <g key={i}>
                   <line
@@ -495,7 +495,7 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }
                   {seg.map((s) => (
                     <circle
                       key={s}
-                      cx={(s - 1) * COL_STAGE_W + COL_STAGE_W / 2}
+                      cx={(s - 1) * colW + colW / 2}
                       cy={rowH / 2}
                       r={dotR}
                       fill={highlight ? "var(--fluent)" : "var(--ink)"}
@@ -567,7 +567,7 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }
   );
 }
 
-function ProviderGroup({ provider, tools, defaultCollapsed, openRows, toggleRow, colLabelW, rowH, compact }) {
+function ProviderGroup({ provider, tools, defaultCollapsed, openRows, toggleRow, colLabelW, colW, rowH, compact }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   useEffect(() => {
@@ -620,6 +620,7 @@ function ProviderGroup({ provider, tools, defaultCollapsed, openRows, toggleRow,
             onToggle={() => toggleRow(tool.id)}
             highlight={false}
             colLabelW={colLabelW}
+            colW={colW}
             rowH={rowH}
             compact={compact}
           />
@@ -638,6 +639,22 @@ function ToolLandscape() {
   const isCompact = density === "compact";
   const colLabelW = isCompact ? COL_LABEL_W_COMPACT : COL_LABEL_W_RELAXED;
   const rowH = isCompact ? ROW_H_COMPACT : ROW_H_RELAXED;
+
+  const tableRef = React.useRef(null);
+  const [colW, setColW] = useState(COL_STAGE_W);
+
+  useEffect(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    const update = () => {
+      const available = el.clientWidth - colLabelW;
+      if (available > 0) setColW(Math.max(COL_STAGE_W, available / STAGES.length));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [colLabelW]);
 
   const toggleRow = (id) => setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -814,10 +831,10 @@ function ToolLandscape() {
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: colLabelW + STAGES.length * COL_STAGE_W, position: "relative" }}>
-          <ColumnHighlights stageFilter={stageFilter} colLabelW={colLabelW} />
-          <StageHeader stageFilter={stageFilter} toggleStage={toggleStage} stageCounts={stageCounts} colLabelW={colLabelW} />
+      <div ref={tableRef} style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: colLabelW + STAGES.length * colW, position: "relative" }}>
+          <ColumnHighlights stageFilter={stageFilter} colLabelW={colLabelW} colW={colW} />
+          <StageHeader stageFilter={stageFilter} toggleStage={toggleStage} stageCounts={stageCounts} colLabelW={colLabelW} colW={colW} />
 
           {filtered.length === 0 && (
             <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--ink-faint)", fontSize: 13 }}>
@@ -837,6 +854,7 @@ function ToolLandscape() {
                   openRows={openRows}
                   toggleRow={toggleRow}
                   colLabelW={colLabelW}
+                  colW={colW}
                   rowH={rowH}
                   compact={isCompact}
                 />
@@ -849,6 +867,7 @@ function ToolLandscape() {
                   onToggle={() => toggleRow(tool.id)}
                   highlight={false}
                   colLabelW={colLabelW}
+                  colW={colW}
                   rowH={rowH}
                   compact={isCompact}
                 />
