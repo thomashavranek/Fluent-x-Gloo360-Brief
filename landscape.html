@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bible translation tool landscape</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    min-height: auto;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #error-banner {
+    display: none;
+    padding: 14px 18px;
+    background: #FCEBEB;
+    border: 1px solid #E24B4A;
+    border-radius: 8px;
+    font-family: -apple-system, sans-serif;
+    color: #501313;
+    font-size: 13px;
+    white-space: pre-wrap;
+    margin-bottom: 12px;
+  }
+  #root { width: 100%; }
+</style>
+</head>
+<body>
+
+<div id="error-banner"></div>
+<div id="root"></div>
+
+<script>
+  function showError(title, detail) {
+    var banner = document.getElementById('error-banner');
+    banner.style.display = 'block';
+    banner.textContent = title + (detail ? ('\n\n' + detail) : '');
+  }
+  window.addEventListener('error', function (e) {
+    showError('Runtime error: ' + e.message, e.error && e.error.stack ? e.error.stack : '');
+  });
+</script>
+
+<script type="text/babel" data-type="module">
+const { useState, useMemo, useEffect } = React;
+
+// ---------- Data ----------
+
+const STAGES = [
+  { id: 1, name: "Language Assessment", short: "Assessment" },
+  { id: 2, name: "Language Development", short: "Development" },
+  { id: 3, name: "Biblical Content & Context", short: "Content & Context" },
+  { id: 4, name: "Drafting & Editing", short: "Drafting & Editing" },
+  { id: 5, name: "Quality Assurance", short: "QA" },
+  { id: 6, name: "Bible Publishing", short: "Publishing" },
+  { id: 7, name: "Scripture Engagement", short: "Engagement" },
+];
+
+function toSegments(stages) {
+  const sorted = [...stages].sort((a, b) => a - b);
+  const segments = [];
+  let current = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      current.push(sorted[i]);
+    } else {
+      segments.push(current);
+      current = [sorted[i]];
+    }
+  }
+  segments.push(current);
+  return segments;
+}
+
+const RAW_TOOLS = [
+  ["Paratext", "Created for Bible translators by Bible translators. Enables consistent and accurate translation, based on original texts, modeled after quality translations in other languages.", [3, 4]],
+  ["Phonology Assistant", "A discovery tool that automatically charts sounds from a corpus of phonetic data, helping users uncover and test sound rules within a language.", [2]],
+  ["Open.Bible", "Home base for making the Bible freely available for the world. Scans the Digital Bible Library for Open Access and Creative Commons content, making it freely available to anyone.", [6]],
+  ["Cog", "A tool for comparing speech varieties using lexicostatistics and comparative linguistics techniques, to determine the linguistic relationship between them.", [1]],
+  ["Scripture Forge", "Allows translators to edit Scripture collaboratively, using translation suggestions that actively learn and improve as the translation progresses.", [4, 5]],
+  ["Audio Project Manager", "A web or desktop application that simplifies management of speech audio files, providing solutions for oral Bible translation, oral drafting, storying and general transcription.", [4]],
+  ["Digital Training Library", "An online training platform for translation specialists in the global Bible Translation community, from beginner to expert.", [3]],
+  ["Scripture App Builder", "Create a complete Android app to distribute Scripture text and audio, so people can engage with the Bible in their own language.", [6]],
+  ["Autographa MT", "A simple machine-assisted Scripture drafting tool aimed at speeding up the drafting of Scripture translations using cutting-edge technology.", [4]],
+  ["MARBLE", "Modular Aggregation of Resource on the Bible — a collection of text and image resources to help translators dive into the context of the biblical languages and world of the Bible.", [3]],
+  ["Bible Brain", "Simple API calls for easy access to Bible audio, video, and text — premium audio for the oral majority, Gospel films, and text in 1705 languages.", [7]],
+  ["Publishing Assistant", "Equips Bible typesetters to create high-quality print layouts from Paratext projects through integration with Adobe InDesign, automating and validating common page layout tasks.", [6]],
+  ["MACULA", "Rich linguistic datasets for every sentence of the Hebrew Bible and Greek New Testament, including syntactic structure, morphology, semantic domains, and more.", [3]],
+  ["Language Forge", "An online collaborative lexical editor that syncs with FLEx. Mobile-friendly, with collaboration, commenting, review, and user roles.", [2]],
+  ["WeSay", "Helps non-linguists build a dictionary in their own language, with customizable, task-oriented workflows.", [2]],
+  ["Dictionary App Builder", "Build customized dictionary apps for Android and iOS from a lexicon data file, with fonts, audio, illustrations, and icons packaged together.", [2]],
+  ["Scripture-Engagement.org", "A hub for resources to help encourage real Scripture Engagement — people encountering God's Word in life-changing ways.", [7]],
+  ["The Jesus Film Project App", "A free digital library of more than 200 full-length movies, mini-series, and short films to help the world know Jesus better.", [7]],
+  ["Speech Analyzer", "A computer program for acoustic analysis of speech sounds — fundamental frequency, spectrographic and spectral analysis, and duration measurements.", [2]],
+  ["Sign Language Translation Tool", "A full-featured web application for organizing sign language translation videos, sharing with team members and consultants, and overseeing status through publication.", [4]],
+  ["Multilingualism Assessment Tool", "Helps communities assess multilingualism issues and create greater awareness for relevant Bible translation strategies in multilingual settings.", [1]],
+  ["The Scripture Engagement Guide", "Discussion starters to explore eight key conditions for the Bible to be used in a given context, covering products, processes, and people.", [1, 7]],
+  ["translationCore", "An open source platform for checking and managing Bible translation projects, with access to unfoldingWord's Translation Notes and Translation Words.", [4, 5]],
+  ["Keyman", "Type in over 2000 languages on just about any device — Windows, macOS, Linux, iPhone, iPad, Android, and web browser.", [2]],
+  ["FLExTrans", "Machine translation software for low-resource languages, integrating FieldWorks Language Explorer (FLEx) with the Apertium open-source MT platform.", [4]],
+  ["FieldWorks", "Software tools for managing linguistic and cultural data — from initial data entry through dictionary development, interlinearization, and morphological analysis.", [1]],
+  ["ProgressBible", "An analytics service that partners with Great Commission organizations to illuminate the Scripture gap and inspire informed action to meet local language needs.", [1]],
+  ["Render", "Guides oral communicators in producing oral Scripture for their own language group, aiming to 'publish early, publish often.'", [4]],
+  ["TaBiThA (formerly TBTA)", "Produces draft translations of Scripture in a language that does not yet have the Bible, conveying meaning that still needs editing for clarity and naturalness.", [4]],
+  ["Woven by AvodahConnect", "An AI translation platform that rapidly learns rare, no- or low-resource languages, quietly learning and verifying as teams translate.", [4]],
+  ["Rev79", "Supports good stewardship and collaboration in BT and LD movements, improving project management and visibility across organizations and networks.", [1, 4, 5, 6]],
+  ["ERA (Enter Retrieve Anywhere)", "An enterprise-wide system covering all aspects of Bible translation and Scripture engagement — planning, tracking, trending, computing, and donor reporting.", [1, 2, 3, 4, 5, 6, 7]],
+  ["Paratext Registry", "A website managing the users, projects, and organizations that use Paratext.", [3, 4, 5, 6]],
+  ["Digital Bible Library (DBL)", "An online digital asset and licensing management platform developed and maintained by the United Bible Societies.", [6, 7]],
+  ["Chameleon", "Motion capture technology that changes the way Scripture is presented to Deaf communities, converting a signer's movements into an avatar.", [3, 4, 6, 7]],
+  ["Paratext Lite", "A companion app to Paratext for Android tablet or phone, enabling many translation tasks on a more portable device.", [4, 5]],
+  ["Lilt", "The leading AI solution for translation at scale, helping faith-based organizations reach multilingual communities. Translators work in Lilt's CAT tool or request translations from its faith-based community.", [1, 2, 3, 4, 5, 6, 7]],
+  ["Orature", "An oral translation tool for the oral community, streamlining translation and narration for audio Bibles, with support for 3rd-party editing plugins.", [4]],
+  ["Voice Marking Tools", "A collection of custom Paratext tools for marking the words of Jesus for red-letter publications, or marking character voice boundaries as assigned in Glyssen.", [6]],
+  ["PTXprint", "Makes PDF files from Paratext project text — simple printouts for checking or complex typeset-quality outputs.", [5, 6, 7]],
+  ["Haiola Bible Format Conversion Tool", "Converts USFM files from Paratext, Bibledit, Adapt It, or ETEN DBL bundles into formats usable by end users, with USFM normalization for DBL submission.", [6]],
+  ["Audio Visual Translation Tool (AVTT)", "Enables recording and sharing of audio files, plus text and back-translation transcriptions, and can display resources and key terms in a project.", [4]],
+  ["Oral Bible Translation Tools (OBThelps.org)", "Hosts resources for oral Bible translation projects on Ruth and Jonah — Overview Story, Book Introduction, Drafting Q&A, and Key Concept Stories.", [3, 4]],
+  ["Praat", "Computer software for doing phonetics — spectral, pitch, and formant analysis, plus transcription of recorded speech samples.", [2]],
+  ["Saymore", "A dynamic language documentation tool that simplifies recording, organizing, and archiving linguistic data, with auto-segmentation and archival integration.", [2]],
+  ["Translators Workplace", "A special package of Logos resources for translators — commentaries, dictionaries, Greek and Hebrew texts, and a variety of translated Bibles.", [3, 4]],
+  ["Scriptoria", "A service for Scripture App Builder users that updates Scripture apps on the Google Play store when the App Builder software is updated.", [7]],
+  ["Webonary", "Publish a monolingual or multilingual dictionary on the web with minimal publishing skills.", [1, 2, 4]],
+  ["Adapt It", "Quickly translate between related languages — a free open-source tool to adapt from one language to another where the user understands both.", [4]],
+  ["Glyssen", "Produces scripts for high-quality dramatized audio recordings of Scripture, identifying direct speech and biblical speakers, then assigning cast roles.", [7]],
+  ["IPA Help", "Helps learn the International Phonetic Alphabet by playing the sounds for each symbol, with diagrams showing articulators and places of articulation.", [2]],
+  ["Asheninka syllable parser", "Compares syllabification of thousands of words, importing lists from Paratext and FLEx and exporting hyphenated results. Also functions as a spelling checker.", [5, 6]],
+  ["Lingtree", "Describes a linguistic tree and produces an image of it — usable for syntactic, morphological, and phonological trees.", [2]],
+  ["OneStory Editor", "Documents, organizes, and collaborates on oral Bible stories, bringing together story, translation, biblical references, and consultant comments in one place.", [7]],
+  ["PAWS (Parser and Writer for Syntax)", "The Writer drafts a rough grammar of a language's syntax; the Parser produces files for the PC-PATR syntactic parser within FieldWorks or CARLA Studio.", [2]],
+  ["Primer Pro", "Makes it easy to create primers that follow sound teaching principles, tracking which letters have been taught and which words contain them.", [2]],
+  ["SIL Converters", "Tools to change encoding, font, or script of text across Word, OpenOffice, XML, Paratext, and other documents, with a system-wide encoding converter repository.", [6]],
+  ["Transcelerator", "Facilitates setting up comprehension questions for testing Scripture, using translation memory as questions are translated between languages.", [5]],
+  ["XLingPaper", "A flexible publishing tool for linguists to create web pages, PDFs, Word files, and ePUBs from a single source, automating citation and gloss tracking.", [2]],
+  ["Holistic OBT Chart", "An interactive, color-coded chart showing the process of Bible translation from community ownership through publication and distribution.", [4, 5, 6]],
+  ["RhemaApp", "A multi-platform app providing comprehensive tools for translating the Bible from various sources, built for both OBT and written translation workflows.", [2, 3, 4, 5, 6]],
+  ["Greek Room", "Software tools to improve the quality and efficiency of Bible translation — spell-checking, terminology consistency, and translation drafting help.", [5]],
+  ["The Combine", "An easy-to-use tool for Rapid Word Collection — gathering words from native speakers by semantic domain to serve as the backbone for a bilingual dictionary.", [2]],
+  ["Hummingbird", "A platform for collaborative participation in conceptualizing, developing, and monitoring Bible translation projects, serving churches and language communities.", [3, 4, 5]],
+  ["Parabible", "A web application that makes it easy to search for collocated terms by various morphological tags.", [4, 7]],
+  ["TECkit", "A low-level toolkit for applications that need to perform encoding conversions, such as importing legacy data into a Unicode-based application.", [4]],
+  ["Bible Karaoke", "A Windows program that produces a read-along MP4 video of Paratext Scripture text and audio from HearThis or Scripture App Builder, for literacy and engagement.", [7]],
+  ["Assistant.Bible", "A chatbot that answers questions based on loaded documents/data — the current demo uses Study Notes and Bible Dictionary from Tyndale Open Resources.", [3, 7]],
+  ["Story Producer App", "Publishes micro-content of Bible stories and Bloom books from conception to delivery, covering the full translation, localization, and video creation process.", [2, 7]],
+  ["Scripture Engagement Resources Catalogue", "Lists key translatable tools that may be helpful in Scripture Engagement amongst speakers of minority languages.", [3, 6, 7]],
+  ["HearThis", "Lets communities record and distribute audio of their translated scripture for themselves, without waiting on technicians or full translation completion.", [5, 6]],
+  ["Ethnologue: Languages of the World", "A continuously updated website listing all known languages, and one of the primary sources for attributing ISO codes to languages.", [1, 2]],
+  ["Story Publisher Advantage (SPadv) app", "An oral translation workflow management and video publication tool populated with easy-to-translate Bible story templates.", [2, 3, 7]],
+  ["Alpha Tiles", "Create an Android app with basic literacy games for a new language in less than one week.", [2]],
+  ["Scripture Earth", "Search for Scriptures by language name, code, or country, with links to downloadable/print Scriptures, the Jesus film, and language archive information.", [1]],
+  ["Honey Bee app", "An oral Bible translation workflow app with embedded exegetical helps for local language translators.", [4, 5, 6, 7]],
+  ["Find.bible", "Search for Bible content for any language or country — print, print-on-demand, digital, audio, and visual Bibles, plus content from FOBAI members.", [7]],
+  ["SignApp", "An all-in-one solution empowering the global Deaf community, combining sign translation technology with quality assurance checks for accessible translation.", [2, 3, 5, 7]],
+  ["Dekereke", "A software aid to phonological analysis, maintaining and processing phonetic/phonological data to answer questions about a language's phonological patterns.", [1]],
+  ["Scribe", "A free, user-friendly application supporting Bible translators with drafting and checking Scripture in text and audio, including Open Bible Stories support.", [3, 4]],
+  ["Map Creator", "Simplifies the creation of language-specific maps, charts, diagrams, and timelines for Bible lessons and world geography.", [4, 6]],
+  ["MyEssayWriter.ai", "An AI-driven platform assisting with academic and professional writing tasks, offering tools to enhance the writing process.", [5]],
+  ["Bloom", "Helps low-literacy language communities create the many books needed to develop a love of reading, at all different skill levels.", [2, 7]],
+  ["Primer Prep", "Loads sample text files and shows the optimal teaching order and available words per lesson, with fine-tuning options and drag-and-drop reordering.", [2]],
+  ["Fetch.Bible", "A digital Bible platform letting anyone access scripture in thousands of translations, whether displaying a single verse or powering an entire Bible app.", [6]],
+  ["ClearAligner", "A cross-platform tool for working with alignment data.", [1, 5, 7]],
+  ["AO Lab", "Resource supporting biblical content and context work.", [3]],
+  ["Paper.Bible", "Print books of the Bible in whatever style you need, in over 800 languages, with many customization options for content and appearance.", [6]],
+  ["bible.ai", "A personal Christian AI that grows and learns with you as you explore scripture, offering voice or text conversations with scripture-based insight.", [3, 7]],
+  ["SCRIPTURA", "A resource for students and translators focused on the Psalms, providing analysis and tools for interpretation across over 1,000 languages.", [3, 7]],
+  ["Aquifer", "Enabling widespread understanding of the Bible and trustworthy Bible translations in thousands of languages, illuminating meaning in the original languages.", [2, 3, 5]],
+  ["Bible Well", "A digital platform supporting Bible translation efforts with downloadable texts and study materials for offline access, especially in low-connectivity areas.", [3, 5, 7]],
+  ["translationStudio", "A utility for translating the Bible and Open Bible Stories into one or multiple languages.", [2, 4, 5]],
+  ["iBIBLE", "A digital platform offering biblical resources, translations, and study tools to enhance Scripture engagement for individuals and scholars.", [2, 7]],
+  ["Bible.is", "A digital platform offering dramatized audio Bible recordings in over 1,800 languages, Gospel films in 700 languages, and offline downloads.", [1, 2, 7]],
+  ["Kalaam Media", "A digital platform enabling multilingual website and mobile app creation and hosting, enhancing access to literacy, cultural, and spiritual content.", [1, 4]],
+  ["Akuo: The Spoken Bible", "For audio-first Bible translations, providing images and audio titles for navigation and optional audio footnotes, with offline playback.", [3, 7]],
+  ["SooSL", "Software for developing and publishing sign language dictionaries.", [4, 5]],
+  ["Scripture Burrito", "Documentation for the 1.0.0 specification for sharing Bible content — a 'burrito' format wrapping content and metadata for interoperable distribution.", [4, 5]],
+  ["FaithCopilot", "An ecosystem helping disciples, churches, ministries, and Christian groups collaboratively harness AI to complete the Great Commission.", [1, 5, 7]],
+  ["Digital Manna", "A Bible companion encyclopedia of people, places, events, tribes, plants, and animals, linked to articles and resources.", [3]],
+  ["Fieldworks Lite", "A slimmed-down companion lexical application for FieldWorks dictionary projects, aimed at being fast and easy to use.", [2]],
+  ["Augmented Quality Assessment (AQuA)", "An AI copilot for Bible translation quality assessment.", [5]],
+  ["Graphite", "A 'smart font' system developed specifically to handle the complexities of lesser-known languages of the world.", [3, 6]],
+  ["Swordshare", "The World Languages & Scripture Map, aggregating authoritative linguistics and Bible translation sources like Glottolog, JoshuaProject, and ProgressBible.", [1, 2]],
+  ["Codex Translation Editor", "An open-source, AI-assisted translation editor for teams working in any language, including low-resource ones, focused on scaling quality and consistency.", [4]],
+  ["BibleBolt", "A productivity add-on inserting and formatting Bible verses directly into documents in Google Docs and Microsoft Word.", [4]],
+  ["Logiagraph", "An interactive Bible study and knowledge graph tool for exploring Scripture by passage, theme, person, place, and concept.", [3]],
+  ["Sela", "A web-based exegetical tool for close reading of the Hebrew Bible, exploring meaning through Hebrew syntax, word repetition, and literary structure.", [7]],
+  ["AERO", "AI-powered audio processing in more than 1,000 languages — noise removal, voice alteration, key term recognition, and automated transcription.", [4]],
+  ["Faithbridge", "An AI-powered Bible Q&A app letting local language translators interact with Bible translation resources in 80 languages via audio and text.", [3]],
+  ["Sign Language Translation Resources", "A series of videos helping new Sign Language Translation Projects learn the process and skills for Bible translation into a sign language.", [2]],
+  ["Sign Bible Where", "Helps users find sign language Bible content in a variety of sign languages.", [2]],
+  ["Verse Consolidation & Counting Tool", "Takes lists of Bible references (book, chapter, verse) and counts the number of verses.", [6]],
+  ["Alpha2", "A service leveraging AI advances to provide machine translation and text-to-speech in more than 1,200 languages.", [2]],
+  ["Deaf Bible", "A Deaf-centric Scripture engagement platform accelerating access to God's Word through sign language Bible translations and community engagement.", [3]],
+  ["Deaf Church Where", "A global church discovery platform helping Deaf people locate accessible churches, ministries, events, and biblical resources.", [1]],
+  ["ethnē", "Publish today, portion by portion — in the ethnē Publishing Portal, your team decides when each portion of the translation is ready.", [6, 7]],
+];
+
+const PROVIDER_TOOLS = {
+  "SIL": ["Phonology Assistant", "Cog", "Story Producer App", "Ethnologue: Languages of the World", "HearThis", "Saymore", "TECkit", "The Combine", "Transcelerator", "XLingPaper", "Primer Pro", "SIL Converters", "PAWS (Parser and Writer for Syntax)", "OneStory Editor", "IPA Help", "Asheninka syllable parser", "Lingtree", "Glyssen", "Adapt It", "Translators Workplace", "Webonary", "Scripture Forge", "Scripture App Builder", "Oral Bible Translation Tools (OBThelps.org)", "Language Forge", "WeSay", "ProgressBible", "Dictionary App Builder", "Speech Analyzer", "Voice Marking Tools", "FieldWorks", "PTXprint", "Multilingualism Assessment Tool", "FLExTrans", "Keyman", "Rev79", "Audio Project Manager", "Alpha Tiles", "Scripture Earth", "Bloom", "Primer Prep", "Akuo: The Spoken Bible", "SooSL", "Fieldworks Lite", "Augmented Quality Assessment (AQuA)", "Graphite", "AERO", "Faithbridge", "Verse Consolidation & Counting Tool", "Alpha2"],
+  "Wycliffe": ["Orature", "Hummingbird", "Chameleon"],
+  "United Bible Societies (UBS)": ["Digital Bible Library (DBL)", "Paratext Registry", "MARBLE"],
+  "Biblica": ["Digital Training Library", "Open.Bible", "ClearAligner"],
+  "Faith Comes by Hearing": ["Bible Brain", "Render", "Bible.is"],
+  "Marisree": ["RhemaApp", "SignApp"],
+  "Gloo": ["Aquifer", "Bible Well"],
+  "Bridge Connectivity Solutions": ["Autographa MT", "Scribe"],
+  "Tyndale Bible Translators": ["Honey Bee app", "Story Publisher Advantage (SPadv) app"],
+  "Deaf Bible Society": ["Deaf Church Where", "Deaf Bible"],
+  "unfoldingWord": ["translationStudio", "translationCore"],
+  "Forum of Bible Agencies": ["Find.bible", "Scripture-Engagement.org"],
+  "Gracious Tech": ["Fetch.Bible", "Paper.Bible"],
+};
+
+const TOOL_TO_PROVIDER = {};
+Object.entries(PROVIDER_TOOLS).forEach(([provider, tools]) => {
+  tools.forEach((t) => { TOOL_TO_PROVIDER[t] = provider; });
+});
+
+const INDEPENDENT_LABEL = "Independent / single-tool providers";
+
+const TOOLS = RAW_TOOLS.map(([name, description, stages], idx) => {
+  const isIndependent = !TOOL_TO_PROVIDER[name];
+  const provider = TOOL_TO_PROVIDER[name] || name;
+  return {
+    id: `tool-${idx}`,
+    name,
+    description,
+    stages,
+    segments: toSegments(stages),
+    provider,
+    isIndependent,
+  };
+});
+
+// For the provider filter dropdown, list real multi-tool providers individually
+// plus each independent tool by its own name (so search/filter still finds it),
+// but for grouped-view display, independent tools collapse into one bucket
+// rather than each rendering as its own single-row provider band.
+const PROVIDERS = Array.from(new Set(TOOLS.map((t) => t.provider))).sort((a, b) => {
+  const countA = TOOLS.filter((t) => t.provider === a).length;
+  const countB = TOOLS.filter((t) => t.provider === b).length;
+  if (countA !== countB) return countB - countA;
+  return a.localeCompare(b);
+});
+
+function displayGroupFor(tool) {
+  return tool.isIndependent ? INDEPENDENT_LABEL : tool.provider;
+}
+
+// Sort tools left-to-right along the translation spectrum:
+// 1. earliest stage touched (stages are pre-sorted ascending at construction)
+// 2. narrower span first among ties (a tool starting and ending at stage 1
+//    sorts before one that starts at 1 but stretches all the way to 7)
+// 3. latest stage touched, as a further tiebreak
+// 4. alphabetical, for full determinism
+function byPhaseOrder(a, b) {
+  const aFirst = a.stages[0];
+  const bFirst = b.stages[0];
+  if (aFirst !== bFirst) return aFirst - bFirst;
+
+  const aLast = a.stages[a.stages.length - 1];
+  const bLast = b.stages[b.stages.length - 1];
+  if (aLast !== bLast) return aLast - bLast;
+
+  return a.name.localeCompare(b.name);
+}
+
+// ---------- Layout constants ----------
+
+const COL_LABEL_W_RELAXED = 260;
+const COL_LABEL_W_COMPACT = 24;
+const ROW_H_RELAXED = 30;
+const ROW_H_COMPACT = 13;
+const COL_STAGE_W = 68;
+const HEADER_H = 66;
+
+// ---------- Components ----------
+
+function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "sticky",
+        top: 0,
+        zIndex: 3,
+        background: "var(--paper)",
+        height: HEADER_H,
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ width: colLabelW, flexShrink: 0, borderBottom: "1px solid var(--rule)", transition: "width 140ms ease" }} />
+      {STAGES.map((s) => {
+        const active = stageFilter.has(s.id);
+        return (
+          <button
+            key={s.id}
+            onClick={() => toggleStage(s.id)}
+            aria-pressed={active}
+            title={`${s.name} — click to ${active ? "remove" : "add"} filter`}
+            style={{
+              width: COL_STAGE_W,
+              flexShrink: 0,
+              textAlign: "center",
+              padding: "6px 2px 0",
+              borderBottom: active ? "2px solid var(--connector)" : "1px solid var(--rule)",
+              borderTop: "none",
+              borderRight: "none",
+              borderLeft: "1px solid var(--rule)",
+              boxSizing: "border-box",
+              height: "100%",
+              overflow: "hidden",
+              background: active ? "var(--group-band)" : "transparent",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "block",
+              margin: 0,
+              outlineOffset: "-2px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 13,
+                color: active ? "var(--connector)" : "var(--ink)",
+                fontWeight: 500,
+              }}
+            >
+              {s.id}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: 10.5,
+                color: "var(--ink-soft)",
+                lineHeight: 1.25,
+                marginTop: 2,
+                wordBreak: "break-word",
+              }}
+            >
+              {s.short}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                color: "var(--ink-faint)",
+                marginTop: 1,
+              }}
+            >
+              {stageCounts[s.id]}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ColumnHighlights({ stageFilter, colLabelW }) {
+  if (stageFilter.size === 0) return null;
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: colLabelW,
+        right: 0,
+        bottom: 0,
+        pointerEvents: "none",
+        zIndex: 0,
+        transition: "left 140ms ease",
+      }}
+    >
+      {STAGES.map((s) => {
+        if (!stageFilter.has(s.id)) return null;
+        return (
+          <div
+            key={s.id}
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: (s.id - 1) * COL_STAGE_W,
+              width: COL_STAGE_W,
+              background: "var(--col-highlight)",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, rowH, compact }) {
+  const dotR = compact ? 3 : 4;
+  const strokeW = compact ? (highlight ? 1.75 : 1.25) : (highlight ? 2 : 1.5);
+
+  return (
+    <div>
+      <div
+        onClick={onToggle}
+        title={compact ? tool.name : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          height: rowH,
+          cursor: "pointer",
+          background: isOpen ? "var(--row-open)" : "transparent",
+          borderBottom: compact ? "1px solid var(--rule-faint)" : "1px solid var(--rule-faint)",
+        }}
+        onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = "var(--row-hover)"; }}
+        onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.background = "transparent"; }}
+      >
+        <div
+          style={{
+            width: colLabelW,
+            flexShrink: 0,
+            padding: compact ? "0 0 0 6px" : "0 10px 0 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            overflow: "hidden",
+            transition: "width 140ms ease, padding 140ms ease",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: highlight ? "var(--fluent)" : "var(--ink-faint)",
+              width: 10,
+              flexShrink: 0,
+              transform: isOpen ? "rotate(90deg)" : "none",
+              transition: "transform 120ms ease",
+            }}
+          >
+            &#9656;
+          </span>
+          {!compact && (
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12.5,
+                color: highlight ? "var(--fluent)" : "var(--ink)",
+                fontWeight: highlight ? 500 : 400,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={tool.name}
+            >
+              {tool.name}
+            </span>
+          )}
+        </div>
+
+        <div style={{ position: "relative", height: rowH, flex: 1 }}>
+          <svg
+            width={STAGES.length * COL_STAGE_W}
+            height={rowH}
+            style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}
+          >
+            {tool.segments.map((seg, i) => {
+              if (seg.length === 1) {
+                const cx = (seg[0] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
+                return (
+                  <circle
+                    key={i}
+                    cx={cx}
+                    cy={rowH / 2}
+                    r={dotR}
+                    fill={highlight ? "var(--fluent)" : "var(--ink)"}
+                  />
+                );
+              }
+              const x1 = (seg[0] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
+              const x2 = (seg[seg.length - 1] - 1) * COL_STAGE_W + COL_STAGE_W / 2;
+              return (
+                <g key={i}>
+                  <line
+                    x1={x1}
+                    y1={rowH / 2}
+                    x2={x2}
+                    y2={rowH / 2}
+                    stroke={highlight ? "var(--fluent)" : "var(--connector)"}
+                    strokeWidth={strokeW}
+                  />
+                  {seg.map((s) => (
+                    <circle
+                      key={s}
+                      cx={(s - 1) * COL_STAGE_W + COL_STAGE_W / 2}
+                      cy={rowH / 2}
+                      r={dotR}
+                      fill={highlight ? "var(--fluent)" : "var(--ink)"}
+                    />
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div
+          style={{
+            padding: "10px 16px 14px",
+            paddingLeft: Math.max(colLabelW - 4, 16),
+            background: "var(--row-open)",
+            borderBottom: "1px solid var(--rule-faint)",
+            fontFamily: "var(--sans)",
+          }}
+        >
+          {compact && (
+            <p
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 13,
+                fontWeight: 500,
+                color: highlight ? "var(--fluent)" : "var(--ink)",
+                margin: "0 0 6px",
+              }}
+            >
+              {tool.name}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 6, maxWidth: 620 }}>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 10.5,
+                color: "var(--ink-soft)",
+                border: "1px solid var(--rule)",
+                borderRadius: 3,
+                padding: "2px 7px",
+              }}
+            >
+              {tool.provider}
+            </span>
+            {tool.stages.map((s) => (
+              <span
+                key={s}
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 10.5,
+                  color: "var(--ink-faint)",
+                }}
+              >
+                {STAGES.find((x) => x.id === s).short}
+                {s !== tool.stages[tool.stages.length - 1] ? " ·" : ""}
+              </span>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--ink)", margin: 0, maxWidth: 620 }}>
+            {tool.description}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderGroup({ provider, tools, defaultCollapsed, openRows, toggleRow, colLabelW, rowH, compact }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
+  useEffect(() => {
+    setCollapsed(defaultCollapsed);
+  }, [defaultCollapsed, provider]);
+
+  return (
+    <div>
+      <div
+        onClick={() => setCollapsed(!collapsed)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          height: 34,
+          background: "var(--group-band)",
+          borderTop: "1px solid var(--rule)",
+          borderBottom: "1px solid var(--rule)",
+          cursor: "pointer",
+          padding: "0 10px",
+          position: "sticky",
+          top: HEADER_H,
+          zIndex: 2,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-faint)",
+            transform: collapsed ? "none" : "rotate(90deg)",
+            transition: "transform 120ms ease",
+          }}
+        >
+          &#9656;
+        </span>
+        <span style={{ fontFamily: "var(--serif)", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+          {provider}
+        </span>
+        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+          {tools.length} {tools.length === 1 ? "tool" : "tools"}
+        </span>
+      </div>
+      {!collapsed &&
+        tools.map((tool) => (
+          <ToolRow
+            key={tool.id}
+            tool={tool}
+            isOpen={!!openRows[tool.id]}
+            onToggle={() => toggleRow(tool.id)}
+            highlight={false}
+            colLabelW={colLabelW}
+            rowH={rowH}
+            compact={compact}
+          />
+        ))}
+    </div>
+  );
+}
+
+function ToolLandscape() {
+  const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState(() => new Set());
+  const [providerFilter, setProviderFilter] = useState("all");
+  const [groupByProvider, setGroupByProvider] = useState(false);
+  const [openRows, setOpenRows] = useState({});
+  const [density, setDensity] = useState("relaxed");
+  const isCompact = density === "compact";
+  const colLabelW = isCompact ? COL_LABEL_W_COMPACT : COL_LABEL_W_RELAXED;
+  const rowH = isCompact ? ROW_H_COMPACT : ROW_H_RELAXED;
+
+  const toggleRow = (id) => setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const toggleStage = (stageId) => {
+    setStageFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  };
+
+  const filtered = useMemo(() => {
+    return TOOLS.filter((t) => {
+      if (query && !t.name.toLowerCase().includes(query.toLowerCase())) return false;
+      if (stageFilter.size > 0 && !t.stages.some((s) => stageFilter.has(s))) return false;
+      if (providerFilter !== "all" && t.provider !== providerFilter) return false;
+      return true;
+    }).sort(byPhaseOrder);
+  }, [query, stageFilter, providerFilter]);
+
+  const grouped = useMemo(() => {
+    const map = {};
+    filtered.forEach((t) => {
+      const groupKey = displayGroupFor(t);
+      if (!map[groupKey]) map[groupKey] = [];
+      map[groupKey].push(t);
+    });
+    // filtered is already phase-sorted, so tools within each group inherit
+    // that order automatically — no separate sort needed here.
+    return Object.entries(map).sort((a, b) => {
+      if (a[0] === INDEPENDENT_LABEL) return 1;
+      if (b[0] === INDEPENDENT_LABEL) return -1;
+      if (a[1].length !== b[1].length) return b[1].length - a[1].length;
+      return a[0].localeCompare(b[0]);
+    });
+  }, [filtered]);
+
+  const stageCounts = useMemo(() => {
+    const counts = {};
+    STAGES.forEach((s) => {
+      counts[s.id] = TOOLS.filter((t) => t.stages.includes(s.id)).length;
+    });
+    return counts;
+  }, []);
+
+  return (
+    <div
+      style={{
+        "--paper": "#F9F7F3",
+        "--ink": "#1A1614",
+        "--ink-soft": "#5A5148",
+        "--ink-faint": "#9A9088",
+        "--rule": "#DDD8CC",
+        "--rule-faint": "#E8E4DA",
+        "--connector": "#8B6F47",
+        "--fluent": "#3b74f6",
+        "--row-hover": "rgba(139, 111, 71, 0.06)",
+        "--row-open": "rgba(139, 111, 71, 0.10)",
+        "--group-band": "#EDE9E0",
+        "--col-highlight": "rgba(59, 116, 246, 0.06)",
+        "--serif": "var(--font-legible, 'Inter', sans-serif)",
+        "--mono": "'JetBrains Mono', 'SF Mono', Menlo, monospace",
+        "--sans": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: "var(--paper)",
+        color: "var(--ink)",
+        fontFamily: "var(--sans)",
+        borderRadius: 8,
+        border: "1px solid var(--rule)",
+        overflow: "hidden",
+      }}
+    >
+
+      <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--rule)" }}>
+        <h1 style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, margin: 0, color: "var(--ink)" }}>
+          Bible translation tool landscape
+        </h1>
+        <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "4px 0 0" }}>
+          {TOOLS.length} tools across {PROVIDERS.length} providers, mapped to the 7-stage translation pipeline
+        </p>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Search tool name..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              fontFamily: "var(--sans)",
+              fontSize: 12.5,
+              padding: "6px 10px",
+              border: "1px solid var(--rule)",
+              borderRadius: 5,
+              background: "#fff",
+              color: "var(--ink)",
+              width: 200,
+              outline: "none",
+            }}
+          />
+
+          <select
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+            style={{
+              fontFamily: "var(--sans)",
+              fontSize: 12.5,
+              padding: "6px 8px",
+              border: "1px solid var(--rule)",
+              borderRadius: 5,
+              background: "#fff",
+              color: "var(--ink)",
+              outline: "none",
+            }}
+          >
+            <option value="all">All providers</option>
+            {PROVIDERS.map((p) => (
+              <option key={p} value={p}>
+                {p} ({TOOLS.filter((t) => t.provider === p).length})
+              </option>
+            ))}
+          </select>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-soft)", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={groupByProvider}
+              onChange={(e) => setGroupByProvider(e.target.checked)}
+            />
+            Group by provider
+          </label>
+
+          <div style={{ display: "flex", border: "1px solid var(--rule)", borderRadius: 5, overflow: "hidden" }}>
+            {["relaxed", "compact"].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDensity(d)}
+                aria-pressed={density === d}
+                style={{
+                  fontFamily: "var(--sans)",
+                  fontSize: 12,
+                  padding: "5px 10px",
+                  border: "none",
+                  background: density === d ? "var(--connector)" : "transparent",
+                  color: density === d ? "#fff" : "var(--ink-soft)",
+                  cursor: "pointer",
+                }}
+              >
+                {d === "relaxed" ? "Relaxed" : "Compact"}
+              </button>
+            ))}
+          </div>
+
+          {(query || stageFilter.size > 0 || providerFilter !== "all") && (
+            <button
+              onClick={() => { setQuery(""); setStageFilter(new Set()); setProviderFilter("all"); }}
+              style={{
+                fontFamily: "var(--sans)",
+                fontSize: 12,
+                color: "var(--ink-soft)",
+                background: "none",
+                border: "1px solid var(--rule)",
+                borderRadius: 5,
+                padding: "5px 10px",
+                cursor: "pointer",
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+
+          <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginLeft: "auto", fontFamily: "var(--mono)" }}>
+            {filtered.length} shown
+          </span>
+        </div>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: colLabelW + STAGES.length * COL_STAGE_W, position: "relative" }}>
+          <ColumnHighlights stageFilter={stageFilter} colLabelW={colLabelW} />
+          <StageHeader stageFilter={stageFilter} toggleStage={toggleStage} stageCounts={stageCounts} colLabelW={colLabelW} />
+
+          {filtered.length === 0 && (
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--ink-faint)", fontSize: 13 }}>
+              No tools match the current filters.
+            </div>
+          )}
+
+          {groupByProvider
+            ? grouped.map(([provider, tools]) => (
+                // Note: "provider" here is the display group key — either a real
+                // provider name or INDEPENDENT_LABEL for the collapsed bucket.
+                <ProviderGroup
+                  key={provider}
+                  provider={provider}
+                  tools={tools}
+                  defaultCollapsed={provider === "SIL" || provider === INDEPENDENT_LABEL}
+                  openRows={openRows}
+                  toggleRow={toggleRow}
+                  colLabelW={colLabelW}
+                  rowH={rowH}
+                  compact={isCompact}
+                />
+              ))
+            : filtered.map((tool) => (
+                <ToolRow
+                  key={tool.id}
+                  tool={tool}
+                  isOpen={!!openRows[tool.id]}
+                  onToggle={() => toggleRow(tool.id)}
+                  highlight={false}
+                  colLabelW={colLabelW}
+                  rowH={rowH}
+                  compact={isCompact}
+                />
+              ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "10px 20px",
+          borderTop: "1px solid var(--rule)",
+          fontSize: 11,
+          color: "var(--ink-faint)",
+          display: "flex",
+          gap: 16,
+        }}
+      >
+        <span>&#9679; single-stage tool</span>
+        <span>&#9679;&#8212;&#9679; contiguous stage span</span>
+        <span>&#9679; &nbsp; &#9679; non-contiguous stages (separate dots)</span>
+      </div>
+    </div>
+  );
+}
+
+try {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(React.createElement(ToolLandscape));
+  // Auto-height: notify parent of content height after render
+  function sendHeight() {
+    const h = document.documentElement.scrollHeight;
+    if (window.parent !== window) window.parent.postMessage({ type: 'landscape-height', height: h }, '*');
+  }
+  setTimeout(sendHeight, 300);
+  new ResizeObserver(sendHeight).observe(document.getElementById('root'));
+} catch (e) {
+  showError('Failed to render component: ' + e.message, e.stack);
+}
+</script>
+
+</body>
+</html>
