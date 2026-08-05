@@ -7,29 +7,64 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&family=Atkinson+Hyperlegible+Mono:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    min-height: auto;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  :root {
+    --ink-950: 60 5% 6%;
+    --ink-900: 21 5% 8%;
+    --ink-800: 51 5% 13%;
+    --ink-700: 52 5% 17%;
+    --ink-600: 54 5% 25%;
+    --vellum-50:  0 0% 100%;
+    --vellum-100: 30 10% 98%;
+    --vellum-200: 40 9% 93%;
+    --vellum-300: 47 8% 89%;
+    --vellum-400: 46 8% 81%;
+    --pure-blue-500: 222 97% 55%;
+    --pure-blue-100: 202 100% 90%;
+    --font-legible: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", ui-sans-serif, sans-serif;
+    --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --duration-fast: 150ms;
+    --duration-base: 200ms;
+    --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%; overflow: hidden;
+    background: transparent;
+    font-family: var(--font-legible);
+    -webkit-font-smoothing: antialiased;
+  }
+
   #error-banner {
     display: none;
-    padding: 14px 18px;
-    background: #FCEBEB;
-    border: 1px solid #E24B4A;
-    border-radius: 8px;
-    font-family: -apple-system, sans-serif;
-    color: #501313;
-    font-size: 13px;
+    padding: 12px 16px;
+    background: hsl(0 90% 94%);
+    border: 1px solid hsl(0 97% 55%);
+    border-radius: var(--radius-md);
+    font-family: var(--font-legible);
+    color: hsl(var(--ink-900));
+    font-size: 12.5px;
     white-space: pre-wrap;
-    margin-bottom: 12px;
+    margin: 12px;
   }
-  #root { width: 100%; }
+
+  #root { width: 100%; height: 100%; }
+
+  input[type="text"]:focus,
+  select:focus { outline: 2px solid hsl(var(--pure-blue-500)); outline-offset: -1px; }
+
+  input[type="checkbox"] { accent-color: hsl(var(--pure-blue-500)); }
+
+  button:focus-visible { outline: 2px solid hsl(var(--pure-blue-500)); outline-offset: 1px; }
 </style>
 </head>
 <body>
@@ -43,8 +78,8 @@
     banner.style.display = 'block';
     banner.textContent = title + (detail ? ('\n\n' + detail) : '');
   }
-  window.addEventListener('error', function (e) {
-    showError('Runtime error: ' + e.message, e.error && e.error.stack ? e.error.stack : '');
+  window.addEventListener('error', function(e) {
+    showError('Runtime error: ' + e.message, e.error && e.error.stack || '');
   });
 </script>
 
@@ -54,29 +89,25 @@ const { useState, useMemo, useEffect } = React;
 // ---------- Data ----------
 
 const STAGES = [
-  { id: 1, name: "Language Assessment", short: "Assessment" },
-  { id: 2, name: "Language Development", short: "Development" },
+  { id: 1, name: "Language Assessment",        short: "Assessment"       },
+  { id: 2, name: "Language Development",       short: "Development"      },
   { id: 3, name: "Biblical Content & Context", short: "Content & Context" },
-  { id: 4, name: "Drafting & Editing", short: "Drafting & Editing" },
-  { id: 5, name: "Quality Assurance", short: "QA" },
-  { id: 6, name: "Bible Publishing", short: "Publishing" },
-  { id: 7, name: "Scripture Engagement", short: "Engagement" },
+  { id: 4, name: "Drafting & Editing",         short: "Drafting & Editing"},
+  { id: 5, name: "Quality Assurance",          short: "QA"               },
+  { id: 6, name: "Bible Publishing",           short: "Publishing"       },
+  { id: 7, name: "Scripture Engagement",       short: "Engagement"       },
 ];
 
 function toSegments(stages) {
   const sorted = [...stages].sort((a, b) => a - b);
-  const segments = [];
-  let current = [sorted[0]];
+  const segs = [];
+  let cur = [sorted[0]];
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] === sorted[i - 1] + 1) {
-      current.push(sorted[i]);
-    } else {
-      segments.push(current);
-      current = [sorted[i]];
-    }
+    if (sorted[i] === sorted[i - 1] + 1) { cur.push(sorted[i]); }
+    else { segs.push(cur); cur = [sorted[i]]; }
   }
-  segments.push(current);
-  return segments;
+  segs.push(cur);
+  return segs;
 }
 
 const RAW_TOOLS = [
@@ -201,158 +232,111 @@ const RAW_TOOLS = [
 ];
 
 const PROVIDER_TOOLS = {
-  "SIL": ["Phonology Assistant", "Cog", "Story Producer App", "Ethnologue: Languages of the World", "HearThis", "Saymore", "TECkit", "The Combine", "Transcelerator", "XLingPaper", "Primer Pro", "SIL Converters", "PAWS (Parser and Writer for Syntax)", "OneStory Editor", "IPA Help", "Asheninka syllable parser", "Lingtree", "Glyssen", "Adapt It", "Translators Workplace", "Webonary", "Scripture Forge", "Scripture App Builder", "Oral Bible Translation Tools (OBThelps.org)", "Language Forge", "WeSay", "ProgressBible", "Dictionary App Builder", "Speech Analyzer", "Voice Marking Tools", "FieldWorks", "PTXprint", "Multilingualism Assessment Tool", "FLExTrans", "Keyman", "Rev79", "Audio Project Manager", "Alpha Tiles", "Scripture Earth", "Bloom", "Primer Prep", "Akuo: The Spoken Bible", "SooSL", "Fieldworks Lite", "Augmented Quality Assessment (AQuA)", "Graphite", "AERO", "Faithbridge", "Verse Consolidation & Counting Tool", "Alpha2"],
-  "Wycliffe": ["Orature", "Hummingbird", "Chameleon"],
-  "United Bible Societies (UBS)": ["Digital Bible Library (DBL)", "Paratext Registry", "MARBLE"],
-  "Biblica": ["Digital Training Library", "Open.Bible", "ClearAligner"],
-  "Faith Comes by Hearing": ["Bible Brain", "Render", "Bible.is"],
-  "Marisree": ["RhemaApp", "SignApp"],
-  "Gloo": ["Aquifer", "Bible Well"],
-  "Bridge Connectivity Solutions": ["Autographa MT", "Scribe"],
-  "Tyndale Bible Translators": ["Honey Bee app", "Story Publisher Advantage (SPadv) app"],
-  "Deaf Bible Society": ["Deaf Church Where", "Deaf Bible"],
-  "unfoldingWord": ["translationStudio", "translationCore"],
-  "Forum of Bible Agencies": ["Find.bible", "Scripture-Engagement.org"],
-  "Gracious Tech": ["Fetch.Bible", "Paper.Bible"],
+  "SIL": ["Phonology Assistant","Cog","Story Producer App","Ethnologue: Languages of the World","HearThis","Saymore","TECkit","The Combine","Transcelerator","XLingPaper","Primer Pro","SIL Converters","PAWS (Parser and Writer for Syntax)","OneStory Editor","IPA Help","Asheninka syllable parser","Lingtree","Glyssen","Adapt It","Translators Workplace","Webonary","Scripture Forge","Scripture App Builder","Oral Bible Translation Tools (OBThelps.org)","Language Forge","WeSay","ProgressBible","Dictionary App Builder","Speech Analyzer","Voice Marking Tools","FieldWorks","PTXprint","Multilingualism Assessment Tool","FLExTrans","Keyman","Rev79","Audio Project Manager","Alpha Tiles","Scripture Earth","Bloom","Primer Prep","Akuo: The Spoken Bible","SooSL","Fieldworks Lite","Augmented Quality Assessment (AQuA)","Graphite","AERO","Faithbridge","Verse Consolidation & Counting Tool","Alpha2"],
+  "Wycliffe": ["Orature","Hummingbird","Chameleon"],
+  "United Bible Societies (UBS)": ["Digital Bible Library (DBL)","Paratext Registry","MARBLE"],
+  "Biblica": ["Digital Training Library","Open.Bible","ClearAligner"],
+  "Faith Comes by Hearing": ["Bible Brain","Render","Bible.is"],
+  "Marisree": ["RhemaApp","SignApp"],
+  "Gloo": ["Aquifer","Bible Well"],
+  "Bridge Connectivity Solutions": ["Autographa MT","Scribe"],
+  "Tyndale Bible Translators": ["Honey Bee app","Story Publisher Advantage (SPadv) app"],
+  "Deaf Bible Society": ["Deaf Church Where","Deaf Bible"],
+  "unfoldingWord": ["translationStudio","translationCore"],
+  "Forum of Bible Agencies": ["Find.bible","Scripture-Engagement.org"],
+  "Gracious Tech": ["Fetch.Bible","Paper.Bible"],
 };
 
 const TOOL_TO_PROVIDER = {};
-Object.entries(PROVIDER_TOOLS).forEach(([provider, tools]) => {
-  tools.forEach((t) => { TOOL_TO_PROVIDER[t] = provider; });
-});
+Object.entries(PROVIDER_TOOLS).forEach(([p, tools]) => { tools.forEach((t) => { TOOL_TO_PROVIDER[t] = p; }); });
 
 const INDEPENDENT_LABEL = "Independent / single-tool providers";
 
 const TOOLS = RAW_TOOLS.map(([name, description, stages], idx) => {
-  const isIndependent = !TOOL_TO_PROVIDER[name];
   const provider = TOOL_TO_PROVIDER[name] || name;
-  return {
-    id: `tool-${idx}`,
-    name,
-    description,
-    stages,
-    segments: toSegments(stages),
-    provider,
-    isIndependent,
-  };
+  return { id: `tool-${idx}`, name, description, stages, segments: toSegments(stages), provider, isIndependent: !TOOL_TO_PROVIDER[name] };
 });
 
-// For the provider filter dropdown, list real multi-tool providers individually
-// plus each independent tool by its own name (so search/filter still finds it),
-// but for grouped-view display, independent tools collapse into one bucket
-// rather than each rendering as its own single-row provider band.
 const PROVIDERS = Array.from(new Set(TOOLS.map((t) => t.provider))).sort((a, b) => {
-  const countA = TOOLS.filter((t) => t.provider === a).length;
-  const countB = TOOLS.filter((t) => t.provider === b).length;
-  if (countA !== countB) return countB - countA;
-  return a.localeCompare(b);
+  const ca = TOOLS.filter((t) => t.provider === a).length;
+  const cb = TOOLS.filter((t) => t.provider === b).length;
+  return ca !== cb ? cb - ca : a.localeCompare(b);
 });
 
-function displayGroupFor(tool) {
-  return tool.isIndependent ? INDEPENDENT_LABEL : tool.provider;
-}
+function displayGroupFor(t) { return t.isIndependent ? INDEPENDENT_LABEL : t.provider; }
 
-// Sort tools left-to-right along the translation spectrum:
-// 1. earliest stage touched (stages are pre-sorted ascending at construction)
-// 2. narrower span first among ties (a tool starting and ending at stage 1
-//    sorts before one that starts at 1 but stretches all the way to 7)
-// 3. latest stage touched, as a further tiebreak
-// 4. alphabetical, for full determinism
 function byPhaseOrder(a, b) {
-  const aFirst = a.stages[0];
-  const bFirst = b.stages[0];
-  if (aFirst !== bFirst) return aFirst - bFirst;
-
-  const aLast = a.stages[a.stages.length - 1];
-  const bLast = b.stages[b.stages.length - 1];
-  if (aLast !== bLast) return aLast - bLast;
-
+  const af = a.stages[0], bf = b.stages[0];
+  if (af !== bf) return af - bf;
+  const al = a.stages[a.stages.length - 1], bl = b.stages[b.stages.length - 1];
+  if (al !== bl) return al - bl;
   return a.name.localeCompare(b.name);
 }
 
 // ---------- Layout constants ----------
 
 const COL_LABEL_W_RELAXED = 260;
-const COL_LABEL_W_COMPACT = 24;
-const ROW_H_RELAXED = 30;
-const ROW_H_COMPACT = 13;
-const COL_STAGE_W = 68;
-const HEADER_H = 66;
+const COL_LABEL_W_COMPACT  = 24;
+const ROW_H_RELAXED = 34;
+const ROW_H_COMPACT  = 14;
+const COL_STAGE_W   = 68;
+const HEADER_H      = 58;
+
+// ---------- Tokens (inline JS mirrors of CSS :root for SVG / JS math) ----------
+
+const T = {
+  ink:        "hsl(21 5% 8%)",
+  inkMuted:   "hsl(21 5% 8% / 0.55)",
+  inkFaint:   "hsl(21 5% 8% / 0.25)",
+  blue:       "hsl(222 97% 55%)",
+  connector:  "hsl(21 5% 8% / 0.18)",
+};
 
 // ---------- Components ----------
 
 function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW, colW }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        position: "sticky",
-        top: 0,
-        zIndex: 3,
-        background: "var(--paper)",
-        height: HEADER_H,
-        boxSizing: "border-box",
-      }}
-    >
-      <div style={{ width: colLabelW, flexShrink: 0, borderBottom: "1px solid var(--rule)", transition: "width 140ms ease" }} />
+    <div style={{
+      display: "flex",
+      position: "sticky",
+      top: 0,
+      zIndex: 3,
+      background: "hsl(var(--vellum-50))",
+      height: HEADER_H,
+      boxSizing: "border-box",
+      borderBottom: "1px solid hsl(var(--vellum-300))",
+    }}>
+      <div style={{ width: colLabelW, flexShrink: 0, transition: "width 140ms var(--ease-standard)" }} />
       {STAGES.map((s) => {
         const active = stageFilter.has(s.id);
         return (
-          <button
-            key={s.id}
+          <button key={s.id}
             onClick={() => toggleStage(s.id)}
             aria-pressed={active}
             title={`${s.name} — click to ${active ? "remove" : "add"} filter`}
             style={{
-              width: colW,
-              flexShrink: 0,
+              width: colW, flexShrink: 0,
               textAlign: "center",
-              padding: "6px 2px 0",
-              borderBottom: active ? "2px solid var(--connector)" : "1px solid var(--rule)",
-              borderTop: "none",
-              borderRight: "none",
-              borderLeft: "1px solid var(--rule)",
+              padding: "8px 4px 0",
+              borderBottom: active ? "2px solid hsl(var(--pure-blue-500))" : "none",
+              borderTop: "none", borderRight: "none",
+              borderLeft: "1px solid hsl(var(--vellum-300))",
               boxSizing: "border-box",
-              height: "100%",
-              overflow: "hidden",
-              background: active ? "var(--group-band)" : "transparent",
+              height: "100%", overflow: "hidden",
+              background: active ? "hsl(var(--pure-blue-500) / 0.05)" : "transparent",
               cursor: "pointer",
-              fontFamily: "inherit",
-              display: "block",
-              margin: 0,
-              outlineOffset: "-2px",
+              fontFamily: "var(--font-legible)",
+              display: "block", margin: 0,
+              transition: "background var(--duration-fast) var(--ease-standard)",
             }}
           >
-            <div
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 13,
-                color: active ? "var(--connector)" : "var(--ink)",
-                fontWeight: 500,
-              }}
-            >
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: active ? "hsl(var(--pure-blue-500))" : "hsl(var(--ink-900) / 0.35)", fontWeight: 500, lineHeight: 1 }}>
               {s.id}
             </div>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 10.5,
-                color: "var(--ink-soft)",
-                lineHeight: 1.25,
-                marginTop: 2,
-                wordBreak: "break-word",
-              }}
-            >
+            <div style={{ fontFamily: "var(--font-legible)", fontSize: 10, color: active ? "hsl(var(--ink-900) / 0.8)" : "hsl(var(--ink-900) / 0.45)", fontWeight: 400, lineHeight: 1.3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
               {s.short}
             </div>
-            <div
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 9,
-                color: "var(--ink-faint)",
-                marginTop: 1,
-              }}
-            >
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: active ? "hsl(var(--pure-blue-500) / 0.7)" : "hsl(var(--ink-900) / 0.2)", marginTop: 2 }}>
               {stageCounts[s.id]}
             </div>
           </button>
@@ -365,42 +349,25 @@ function StageHeader({ stageFilter, toggleStage, stageCounts, colLabelW, colW })
 function ColumnHighlights({ stageFilter, colLabelW, colW }) {
   if (stageFilter.size === 0) return null;
   return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        top: 0,
-        left: colLabelW,
-        right: 0,
-        bottom: 0,
-        pointerEvents: "none",
-        zIndex: 0,
-        transition: "left 140ms ease",
-      }}
-    >
-      {STAGES.map((s) => {
-        if (!stageFilter.has(s.id)) return null;
-        return (
-          <div
-            key={s.id}
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: (s.id - 1) * colW,
-              width: colW,
-              background: "var(--col-highlight)",
-            }}
-          />
-        );
-      })}
+    <div aria-hidden="true" style={{
+      position: "absolute", top: 0, left: colLabelW, right: 0, bottom: 0,
+      pointerEvents: "none", zIndex: 0,
+      transition: "left 140ms var(--ease-standard)",
+    }}>
+      {STAGES.map((s) => !stageFilter.has(s.id) ? null : (
+        <div key={s.id} style={{
+          position: "absolute", top: 0, bottom: 0,
+          left: (s.id - 1) * colW, width: colW,
+          background: "hsl(var(--pure-blue-500) / 0.04)",
+        }} />
+      ))}
     </div>
   );
 }
 
 function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, compact }) {
-  const dotR = compact ? 3 : 4;
-  const strokeW = compact ? (highlight ? 1.75 : 1.25) : (highlight ? 2 : 1.5);
+  const dotR   = compact ? 2.5 : 3.5;
+  const strokeW = compact ? 1 : 1.25;
 
   return (
     <div>
@@ -408,60 +375,44 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, com
         onClick={onToggle}
         title={compact ? tool.name : undefined}
         style={{
-          display: "flex",
-          alignItems: "center",
-          height: rowH,
-          cursor: "pointer",
-          background: isOpen ? "var(--row-open)" : "transparent",
-          borderBottom: compact ? "1px solid var(--rule-faint)" : "1px solid var(--rule-faint)",
+          display: "flex", alignItems: "center",
+          height: rowH, cursor: "pointer",
+          background: isOpen ? "hsl(var(--vellum-200) / 0.55)" : "transparent",
+          borderBottom: "1px solid hsl(var(--vellum-200))",
+          transition: "background var(--duration-fast) var(--ease-standard)",
         }}
-        onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = "var(--row-hover)"; }}
-        onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.background = "transparent"; }}
+        onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.background = "hsl(var(--ink-900) / 0.025)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = isOpen ? "hsl(var(--vellum-200) / 0.55)" : "transparent"; }}
       >
-        <div
-          style={{
-            width: colLabelW,
-            flexShrink: 0,
-            boxSizing: "border-box",
-            padding: compact ? "0 0 0 6px" : "0 10px 0 8px",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            overflow: "hidden",
-            transition: "width 140ms ease, padding 140ms ease",
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--mono)",
-              fontSize: 9,
-              color: highlight ? "var(--fluent)" : "var(--ink-faint)",
-              width: 10,
-              flexShrink: 0,
-              transform: isOpen ? "rotate(90deg)" : "none",
-              transition: "transform 120ms ease",
-            }}
-          >
-            &#9656;
-          </span>
+        {/* Label column */}
+        <div style={{
+          width: colLabelW, flexShrink: 0, boxSizing: "border-box",
+          padding: compact ? "0 0 0 6px" : "0 12px 0 10px",
+          display: "flex", alignItems: "center", gap: 7,
+          overflow: "hidden",
+          transition: "width 140ms var(--ease-standard), padding 140ms var(--ease-standard)",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-mono)", fontSize: 8,
+            color: highlight ? "hsl(var(--pure-blue-500))" : "hsl(var(--ink-900) / 0.22)",
+            width: 8, flexShrink: 0,
+            transform: isOpen ? "rotate(90deg)" : "none",
+            transition: "transform 120ms var(--ease-standard), color var(--duration-fast) var(--ease-standard)",
+          }}>&#9656;</span>
           {!compact && (
-            <span
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 12.5,
-                color: highlight ? "var(--fluent)" : "var(--ink)",
-                fontWeight: highlight ? 500 : 400,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-              title={tool.name}
-            >
+            <span style={{
+              fontFamily: "var(--font-legible)", fontSize: 13,
+              color: highlight ? "hsl(var(--pure-blue-500))" : "hsl(var(--ink-900))",
+              fontWeight: highlight ? 500 : 400,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              letterSpacing: "-0.01em",
+            }} title={tool.name}>
               {tool.name}
             </span>
           )}
         </div>
 
+        {/* Dots column */}
         <div style={{ position: "relative", height: rowH, flex: 1 }}>
           <svg
             width={STAGES.length * colW}
@@ -469,38 +420,19 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, com
             style={{ position: "absolute", left: 0, top: 0, overflow: "visible" }}
           >
             {tool.segments.map((seg, i) => {
+              const dotFill = highlight ? T.blue : T.ink;
               if (seg.length === 1) {
                 const cx = (seg[0] - 1) * colW + colW / 2;
-                return (
-                  <circle
-                    key={i}
-                    cx={cx}
-                    cy={rowH / 2}
-                    r={dotR}
-                    fill={highlight ? "var(--fluent)" : "var(--ink)"}
-                  />
-                );
+                return <circle key={i} cx={cx} cy={rowH / 2} r={dotR} fill={dotFill} />;
               }
               const x1 = (seg[0] - 1) * colW + colW / 2;
               const x2 = (seg[seg.length - 1] - 1) * colW + colW / 2;
               return (
                 <g key={i}>
-                  <line
-                    x1={x1}
-                    y1={rowH / 2}
-                    x2={x2}
-                    y2={rowH / 2}
-                    stroke={highlight ? "var(--fluent)" : "var(--connector)"}
-                    strokeWidth={strokeW}
-                  />
+                  <line x1={x1} y1={rowH / 2} x2={x2} y2={rowH / 2}
+                    stroke={highlight ? T.blue : T.connector} strokeWidth={strokeW} />
                   {seg.map((s) => (
-                    <circle
-                      key={s}
-                      cx={(s - 1) * colW + colW / 2}
-                      cy={rowH / 2}
-                      r={dotR}
-                      fill={highlight ? "var(--fluent)" : "var(--ink)"}
-                    />
+                    <circle key={s} cx={(s - 1) * colW + colW / 2} cy={rowH / 2} r={dotR} fill={dotFill} />
                   ))}
                 </g>
               );
@@ -510,58 +442,39 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, com
       </div>
 
       {isOpen && (
-        <div
-          style={{
-            padding: "10px 16px 14px",
-            paddingLeft: Math.max(colLabelW - 4, 16),
-            background: "var(--row-open)",
-            borderBottom: "1px solid var(--rule-faint)",
-            fontFamily: "var(--sans)",
-          }}
-        >
+        <div style={{
+          paddingTop: 10, paddingBottom: 14,
+          paddingLeft: Math.max(colLabelW - 4, 20),
+          paddingRight: 20,
+          background: "hsl(var(--vellum-100))",
+          borderBottom: "1px solid hsl(var(--vellum-200))",
+        }}>
           {compact && (
-            <p
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 13,
-                fontWeight: 500,
-                color: highlight ? "var(--fluent)" : "var(--ink)",
-                margin: "0 0 6px",
-              }}
-            >
+            <p style={{ fontFamily: "var(--font-legible)", fontSize: 13, fontWeight: 600, color: "hsl(var(--ink-900))", margin: "0 0 8px", letterSpacing: "-0.01em" }}>
               {tool.name}
             </p>
           )}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 6, maxWidth: 620 }}>
-            <span
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 10.5,
-                color: "var(--ink-soft)",
-                border: "1px solid var(--rule)",
-                borderRadius: 3,
-                padding: "2px 7px",
-              }}
-            >
-              {tool.provider}
-            </span>
-            {tool.stages.map((s) => (
-              <span
-                key={s}
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 10.5,
-                  color: "var(--ink-faint)",
-                }}
-              >
-                {STAGES.find((x) => x.id === s).short}
-                {s !== tool.stages[tool.stages.length - 1] ? " ·" : ""}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+            <span style={{
+              fontFamily: "var(--font-legible)", fontSize: 11, fontWeight: 400,
+              color: "hsl(var(--ink-900) / 0.55)",
+              background: "hsl(var(--vellum-300))",
+              borderRadius: "var(--radius-sm)", padding: "2px 8px",
+            }}>{tool.provider}</span>
+            {tool.stages.map((s, i) => (
+              <span key={s} style={{
+                fontFamily: "var(--font-mono)", fontSize: 10,
+                color: "hsl(var(--ink-900) / 0.35)",
+              }}>
+                {STAGES.find((x) => x.id === s).short}{i < tool.stages.length - 1 ? " ·" : ""}
               </span>
             ))}
           </div>
-          <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--ink)", margin: 0, maxWidth: 620 }}>
-            {tool.description}
-          </p>
+          <p style={{
+            fontFamily: "var(--font-legible)", fontSize: 13, fontWeight: 300,
+            lineHeight: 1.6, color: "hsl(var(--ink-900) / 0.7)",
+            margin: 0, maxWidth: 600,
+          }}>{tool.description}</p>
         </div>
       )}
     </div>
@@ -570,76 +483,53 @@ function ToolRow({ tool, isOpen, onToggle, highlight, colLabelW, colW, rowH, com
 
 function ProviderGroup({ provider, tools, defaultCollapsed, openRows, toggleRow, colLabelW, colW, rowH, compact }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-
-  useEffect(() => {
-    setCollapsed(defaultCollapsed);
-  }, [defaultCollapsed, provider]);
+  useEffect(() => { setCollapsed(defaultCollapsed); }, [defaultCollapsed, provider]);
 
   return (
     <div>
-      <div
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          height: 34,
-          background: "var(--group-band)",
-          borderTop: "1px solid var(--rule)",
-          borderBottom: "1px solid var(--rule)",
-          cursor: "pointer",
-          padding: "0 10px",
-          position: "sticky",
-          top: HEADER_H,
-          zIndex: 2,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--mono)",
-            fontSize: 9,
-            color: "var(--ink-faint)",
-            transform: collapsed ? "none" : "rotate(90deg)",
-            transition: "transform 120ms ease",
-          }}
-        >
-          &#9656;
-        </span>
-        <span style={{ fontFamily: "var(--serif)", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+      <div onClick={() => setCollapsed(!collapsed)} style={{
+        display: "flex", alignItems: "center", gap: 8, height: 32,
+        background: "hsl(var(--vellum-200))",
+        borderTop: "1px solid hsl(var(--vellum-300))",
+        borderBottom: "1px solid hsl(var(--vellum-300))",
+        cursor: "pointer", padding: "0 12px",
+        position: "sticky", top: HEADER_H, zIndex: 2,
+      }}>
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: 8,
+          color: "hsl(var(--ink-900) / 0.3)",
+          transform: collapsed ? "none" : "rotate(90deg)",
+          transition: "transform 120ms var(--ease-standard)",
+        }}>&#9656;</span>
+        <span style={{ fontFamily: "var(--font-legible)", fontSize: 12.5, fontWeight: 700, color: "hsl(var(--ink-900) / 0.75)", letterSpacing: "-0.01em" }}>
           {provider}
         </span>
-        <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "hsl(var(--ink-900) / 0.3)" }}>
           {tools.length} {tools.length === 1 ? "tool" : "tools"}
         </span>
       </div>
-      {!collapsed &&
-        tools.map((tool) => (
-          <ToolRow
-            key={tool.id}
-            tool={tool}
-            isOpen={!!openRows[tool.id]}
-            onToggle={() => toggleRow(tool.id)}
-            highlight={false}
-            colLabelW={colLabelW}
-            colW={colW}
-            rowH={rowH}
-            compact={compact}
-          />
-        ))}
+      {!collapsed && tools.map((tool) => (
+        <ToolRow key={tool.id} tool={tool}
+          isOpen={!!openRows[tool.id]} onToggle={() => toggleRow(tool.id)}
+          highlight={false} colLabelW={colLabelW} colW={colW} rowH={rowH} compact={compact}
+        />
+      ))}
     </div>
   );
 }
 
+// ---------- Main component ----------
+
 function ToolLandscape() {
-  const [query, setQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState(() => new Set());
+  const [query, setQuery]               = useState("");
+  const [stageFilter, setStageFilter]   = useState(() => new Set());
   const [providerFilter, setProviderFilter] = useState("all");
   const [groupByProvider, setGroupByProvider] = useState(false);
-  const [openRows, setOpenRows] = useState({});
-  const [density, setDensity] = useState("relaxed");
-  const isCompact = density === "compact";
-  const colLabelW = isCompact ? COL_LABEL_W_COMPACT : COL_LABEL_W_RELAXED;
-  const rowH = isCompact ? ROW_H_COMPACT : ROW_H_RELAXED;
+  const [openRows, setOpenRows]         = useState({});
+  const [density, setDensity]           = useState("relaxed");
+  const isCompact  = density === "compact";
+  const colLabelW  = isCompact ? COL_LABEL_W_COMPACT : COL_LABEL_W_RELAXED;
+  const rowH       = isCompact ? ROW_H_COMPACT : ROW_H_RELAXED;
 
   const tableRef = React.useRef(null);
   const [colW, setColW] = useState(COL_STAGE_W);
@@ -648,8 +538,8 @@ function ToolLandscape() {
     const el = tableRef.current;
     if (!el) return;
     const update = () => {
-      const available = el.clientWidth - colLabelW;
-      if (available > 0) setColW(Math.max(COL_STAGE_W, available / STAGES.length));
+      const avail = el.clientWidth - colLabelW;
+      if (avail > 0) setColW(Math.max(COL_STAGE_W, avail / STAGES.length));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -657,35 +547,23 @@ function ToolLandscape() {
     return () => ro.disconnect();
   }, [colLabelW]);
 
-  const toggleRow = (id) => setOpenRows((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleRow = (id) => setOpenRows((p) => ({ ...p, [id]: !p[id] }));
+  const toggleStage = (id) => setStageFilter((p) => {
+    const n = new Set(p);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
 
-  const toggleStage = (stageId) => {
-    setStageFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(stageId)) next.delete(stageId);
-      else next.add(stageId);
-      return next;
-    });
-  };
-
-  const filtered = useMemo(() => {
-    return TOOLS.filter((t) => {
-      if (query && !t.name.toLowerCase().includes(query.toLowerCase())) return false;
-      if (stageFilter.size > 0 && !t.stages.some((s) => stageFilter.has(s))) return false;
-      if (providerFilter !== "all" && t.provider !== providerFilter) return false;
-      return true;
-    }).sort(byPhaseOrder);
-  }, [query, stageFilter, providerFilter]);
+  const filtered = useMemo(() => TOOLS.filter((t) => {
+    if (query && !t.name.toLowerCase().includes(query.toLowerCase())) return false;
+    if (stageFilter.size > 0 && !t.stages.some((s) => stageFilter.has(s))) return false;
+    if (providerFilter !== "all" && t.provider !== providerFilter) return false;
+    return true;
+  }).sort(byPhaseOrder), [query, stageFilter, providerFilter]);
 
   const grouped = useMemo(() => {
     const map = {};
-    filtered.forEach((t) => {
-      const groupKey = displayGroupFor(t);
-      if (!map[groupKey]) map[groupKey] = [];
-      map[groupKey].push(t);
-    });
-    // filtered is already phase-sorted, so tools within each group inherit
-    // that order automatically — no separate sort needed here.
+    filtered.forEach((t) => { const k = displayGroupFor(t); if (!map[k]) map[k] = []; map[k].push(t); });
     return Object.entries(map).sort((a, b) => {
       if (a[0] === INDEPENDENT_LABEL) return 1;
       if (b[0] === INDEPENDENT_LABEL) return -1;
@@ -695,200 +573,149 @@ function ToolLandscape() {
   }, [filtered]);
 
   const stageCounts = useMemo(() => {
-    const counts = {};
-    STAGES.forEach((s) => {
-      counts[s.id] = TOOLS.filter((t) => t.stages.includes(s.id)).length;
-    });
-    return counts;
+    const c = {};
+    STAGES.forEach((s) => { c[s.id] = TOOLS.filter((t) => t.stages.includes(s.id)).length; });
+    return c;
   }, []);
 
+  const hasFilters = query || stageFilter.size > 0 || providerFilter !== "all";
+
+  // ---- Input shared styles ----
+  const inputStyle = {
+    fontFamily: "var(--font-legible)",
+    fontSize: 12.5, fontWeight: 400,
+    padding: "5px 10px",
+    border: "1px solid hsl(var(--vellum-300))",
+    borderRadius: "var(--radius-md)",
+    background: "hsl(var(--vellum-50))",
+    color: "hsl(var(--ink-900))",
+    outline: "none",
+    transition: "border-color var(--duration-fast) var(--ease-standard)",
+  };
+
   return (
-    <div
-      style={{
-        "--paper": "#F9F7F3",
-        "--ink": "#1A1614",
-        "--ink-soft": "#5A5148",
-        "--ink-faint": "#9A9088",
-        "--rule": "#DDD8CC",
-        "--rule-faint": "#E8E4DA",
-        "--connector": "#8B6F47",
-        "--fluent": "#3b74f6",
-        "--row-hover": "rgba(139, 111, 71, 0.06)",
-        "--row-open": "rgba(139, 111, 71, 0.10)",
-        "--group-band": "#EDE9E0",
-        "--col-highlight": "rgba(59, 116, 246, 0.06)",
-        "--serif": "var(--font-legible, 'Inter', sans-serif)",
-        "--mono": "'JetBrains Mono', 'SF Mono', Menlo, monospace",
-        "--sans": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        background: "var(--paper)",
-        color: "var(--ink)",
-        fontFamily: "var(--sans)",
-        borderRadius: 8,
-        border: "1px solid var(--rule)",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      overflow: "hidden",
+      background: "hsl(var(--vellum-50))",
+      color: "hsl(var(--ink-900))",
+      fontFamily: "var(--font-legible)",
+      borderRadius: "var(--radius-lg)",
+      border: "1px solid hsl(var(--vellum-300))",
+    }}>
 
-      <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--rule)" }}>
-        <h1 style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, margin: 0, color: "var(--ink)" }}>
-          Bible translation tool landscape
-        </h1>
-        <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "4px 0 0" }}>
-          {TOOLS.length} tools across {PROVIDERS.length} providers, mapped to the 7-stage translation pipeline
-        </p>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
-          <input
-            type="text"
-            placeholder="Search tool name..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              fontFamily: "var(--sans)",
-              fontSize: 12.5,
-              padding: "6px 10px",
-              border: "1px solid var(--rule)",
-              borderRadius: 5,
-              background: "#fff",
-              color: "var(--ink)",
-              width: 200,
-              outline: "none",
-            }}
-          />
-
-          <select
-            value={providerFilter}
-            onChange={(e) => setProviderFilter(e.target.value)}
-            style={{
-              fontFamily: "var(--sans)",
-              fontSize: 12.5,
-              padding: "6px 8px",
-              border: "1px solid var(--rule)",
-              borderRadius: 5,
-              background: "#fff",
-              color: "var(--ink)",
-              outline: "none",
-            }}
-          >
-            <option value="all">All providers</option>
-            {PROVIDERS.map((p) => (
-              <option key={p} value={p}>
-                {p} ({TOOLS.filter((t) => t.provider === p).length})
-              </option>
-            ))}
-          </select>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-soft)", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={groupByProvider}
-              onChange={(e) => setGroupByProvider(e.target.checked)}
-            />
-            Group by provider
-          </label>
-
-          <div style={{ display: "flex", border: "1px solid var(--rule)", borderRadius: 5, overflow: "hidden" }}>
-            {["relaxed", "compact"].map((d) => (
-              <button
-                key={d}
-                onClick={() => setDensity(d)}
-                aria-pressed={density === d}
-                style={{
-                  fontFamily: "var(--sans)",
-                  fontSize: 12,
-                  padding: "5px 10px",
-                  border: "none",
-                  background: density === d ? "var(--connector)" : "transparent",
-                  color: density === d ? "#fff" : "var(--ink-soft)",
-                  cursor: "pointer",
-                }}
-              >
-                {d === "relaxed" ? "Relaxed" : "Compact"}
-              </button>
-            ))}
+      {/* ---- Controls header ---- */}
+      <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid hsl(var(--vellum-200))", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+          <div>
+            <h1 style={{ fontFamily: "var(--font-legible)", fontSize: 15, fontWeight: 700, margin: 0, color: "hsl(var(--ink-900))", letterSpacing: "-0.02em" }}>
+              Bible translation tool landscape
+            </h1>
+            <p style={{ fontFamily: "var(--font-legible)", fontSize: 12, fontWeight: 300, color: "hsl(var(--ink-900) / 0.5)", margin: "2px 0 0" }}>
+              {TOOLS.length} tools across {PROVIDERS.length} providers, mapped to the 7-stage translation pipeline
+            </p>
           </div>
-
-          {(query || stageFilter.size > 0 || providerFilter !== "all") && (
-            <button
-              onClick={() => { setQuery(""); setStageFilter(new Set()); setProviderFilter("all"); }}
-              style={{
-                fontFamily: "var(--sans)",
-                fontSize: 12,
-                color: "var(--ink-soft)",
-                background: "none",
-                border: "1px solid var(--rule)",
-                borderRadius: 5,
-                padding: "5px 10px",
-                cursor: "pointer",
-              }}
-            >
-              Clear filters
-            </button>
-          )}
-
-          <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginLeft: "auto", fontFamily: "var(--mono)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "hsl(var(--ink-900) / 0.28)", flexShrink: 0, marginLeft: 16 }}>
             {filtered.length} shown
           </span>
         </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Search */}
+          <input type="text" placeholder="Search tool name…" value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ ...inputStyle, width: 180 }}
+          />
+
+          {/* Provider filter */}
+          <select value={providerFilter} onChange={(e) => setProviderFilter(e.target.value)}
+            style={{ ...inputStyle, paddingRight: 6, cursor: "pointer", flex: "1 1 180px", maxWidth: 280 }}
+          >
+            <option value="all">All providers</option>
+            {PROVIDERS.map((p) => (
+              <option key={p} value={p}>{p} ({TOOLS.filter((t) => t.provider === p).length})</option>
+            ))}
+          </select>
+
+          {/* Group by provider */}
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "hsl(var(--ink-900) / 0.55)", cursor: "pointer", whiteSpace: "nowrap", userSelect: "none" }}>
+            <input type="checkbox" checked={groupByProvider} onChange={(e) => setGroupByProvider(e.target.checked)} />
+            Group by provider
+          </label>
+
+          {/* Density toggle */}
+          <div style={{ display: "flex", border: "1px solid hsl(var(--vellum-300))", borderRadius: 999, overflow: "hidden", flexShrink: 0 }}>
+            {["relaxed", "compact"].map((d) => (
+              <button key={d} onClick={() => setDensity(d)} aria-pressed={density === d}
+                style={{
+                  fontFamily: "var(--font-legible)", fontSize: 11.5, fontWeight: density === d ? 500 : 400,
+                  padding: "4px 12px", border: "none",
+                  background: density === d ? "hsl(var(--ink-950))" : "transparent",
+                  color: density === d ? "hsl(var(--vellum-50))" : "hsl(var(--ink-900) / 0.5)",
+                  cursor: "pointer",
+                  transition: "background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)",
+                }}
+              >{d === "relaxed" ? "Relaxed" : "Compact"}</button>
+            ))}
+          </div>
+
+          {/* Clear filters */}
+          {hasFilters && (
+            <button onClick={() => { setQuery(""); setStageFilter(new Set()); setProviderFilter("all"); }}
+              style={{
+                fontFamily: "var(--font-legible)", fontSize: 11.5, fontWeight: 400,
+                color: "hsl(var(--ink-900) / 0.5)",
+                background: "transparent", border: "1px solid hsl(var(--vellum-300))",
+                borderRadius: 999, padding: "4px 12px", cursor: "pointer",
+                transition: "border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "hsl(var(--ink-900) / 0.35)"; e.currentTarget.style.color = "hsl(var(--ink-900))"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "hsl(var(--vellum-300))"; e.currentTarget.style.color = "hsl(var(--ink-900) / 0.5)"; }}
+            >Clear filters</button>
+          )}
+        </div>
       </div>
 
-      <div ref={tableRef} style={{ overflowX: "auto" }}>
+      {/* ---- Table (scrolls) ---- */}
+      <div ref={tableRef} style={{ flex: 1, overflowY: "auto", overflowX: "auto", position: "relative" }}>
         <div style={{ minWidth: colLabelW + STAGES.length * colW, position: "relative" }}>
           <ColumnHighlights stageFilter={stageFilter} colLabelW={colLabelW} colW={colW} />
           <StageHeader stageFilter={stageFilter} toggleStage={toggleStage} stageCounts={stageCounts} colLabelW={colLabelW} colW={colW} />
 
           {filtered.length === 0 && (
-            <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--ink-faint)", fontSize: 13 }}>
+            <div style={{ padding: "40px 20px", textAlign: "center", fontFamily: "var(--font-legible)", fontSize: 13, color: "hsl(var(--ink-900) / 0.35)" }}>
               No tools match the current filters.
             </div>
           )}
 
           {groupByProvider
             ? grouped.map(([provider, tools]) => (
-                // Note: "provider" here is the display group key — either a real
-                // provider name or INDEPENDENT_LABEL for the collapsed bucket.
-                <ProviderGroup
-                  key={provider}
-                  provider={provider}
-                  tools={tools}
+                <ProviderGroup key={provider} provider={provider} tools={tools}
                   defaultCollapsed={provider === "SIL" || provider === INDEPENDENT_LABEL}
-                  openRows={openRows}
-                  toggleRow={toggleRow}
-                  colLabelW={colLabelW}
-                  colW={colW}
-                  rowH={rowH}
-                  compact={isCompact}
+                  openRows={openRows} toggleRow={toggleRow}
+                  colLabelW={colLabelW} colW={colW} rowH={rowH} compact={isCompact}
                 />
               ))
             : filtered.map((tool) => (
-                <ToolRow
-                  key={tool.id}
-                  tool={tool}
-                  isOpen={!!openRows[tool.id]}
-                  onToggle={() => toggleRow(tool.id)}
-                  highlight={false}
-                  colLabelW={colLabelW}
-                  colW={colW}
-                  rowH={rowH}
-                  compact={isCompact}
+                <ToolRow key={tool.id} tool={tool}
+                  isOpen={!!openRows[tool.id]} onToggle={() => toggleRow(tool.id)}
+                  highlight={false} colLabelW={colLabelW} colW={colW} rowH={rowH} compact={isCompact}
                 />
-              ))}
+              ))
+          }
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "10px 20px",
-          borderTop: "1px solid var(--rule)",
-          fontSize: 11,
-          color: "var(--ink-faint)",
-          display: "flex",
-          gap: 16,
-        }}
-      >
-        <span>&#9679; single-stage tool</span>
-        <span>&#9679;&#8212;&#9679; contiguous stage span</span>
-        <span>&#9679; &nbsp; &#9679; non-contiguous stages (separate dots)</span>
+      {/* ---- Legend ---- */}
+      <div style={{
+        padding: "7px 18px", borderTop: "1px solid hsl(var(--vellum-200))",
+        display: "flex", gap: 16, flexShrink: 0,
+        fontFamily: "var(--font-mono)", fontSize: 10, color: "hsl(var(--ink-900) / 0.28)",
+      }}>
+        <span>&#9679; single-stage</span>
+        <span>&#9679;&#8212;&#9679; contiguous span</span>
+        <span>&#9679;&nbsp;&nbsp;&#9679; non-contiguous</span>
+        <span style={{ marginLeft: "auto", fontFamily: "var(--font-legible)", fontWeight: 300 }}>click stage header to filter</span>
       </div>
     </div>
   );
@@ -897,13 +724,6 @@ function ToolLandscape() {
 try {
   const root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(React.createElement(ToolLandscape));
-  // Auto-height: notify parent of content height after render
-  function sendHeight() {
-    const h = document.documentElement.scrollHeight;
-    if (window.parent !== window) window.parent.postMessage({ type: 'landscape-height', height: h }, '*');
-  }
-  setTimeout(sendHeight, 300);
-  new ResizeObserver(sendHeight).observe(document.getElementById('root'));
 } catch (e) {
   showError('Failed to render component: ' + e.message, e.stack);
 }
